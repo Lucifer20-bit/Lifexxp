@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,16 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  GoogleSignin,
+  GoogleSigninButton,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { useAuth } from '@/context/AuthContext';
 import { CyberTheme } from '@/constants/theme';
+
+// ── Replace with your actual Web Client ID from Google Cloud Console ──
+const WEB_CLIENT_ID = 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,9 +50,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'signin',
   onSuccess,
 }) => {
-  const { login, signup, demoLogin } = useAuth();
+  const { login, signup, demoLogin, googleAuth } = useAuth();
 
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+
+  // Configure GoogleSignin once on mount
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: WEB_CLIENT_ID,
+      offlineAccess: true,
+    });
+  }, []);
 
   // Sign In fields
   const [siEmail, setSiEmail] = useState('');
@@ -95,6 +111,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onSuccess?.();
     } finally {
       setSiLoading(false);
+    }
+  };
+
+  // ── Google Sign In ────────────────────────────────────────────────────────
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState('');
+
+  const handleGoogleSignIn = async () => {
+    setGoogleError('');
+    setGoogleLoading(true);
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const idToken = response?.data?.idToken;
+      if (!idToken) {
+        setGoogleError('Failed to get Google token.');
+        return;
+      }
+      const result = await googleAuth(idToken);
+      if (result.success) {
+        onSuccess?.();
+      } else {
+        setGoogleError(result.error || 'Google sign-in failed.');
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled, no error shown
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        setGoogleError('Sign-in already in progress.');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setGoogleError('Google Play Services not available on this device.');
+      } else {
+        setGoogleError(error.message || 'Google sign-in encountered an error.');
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -254,6 +306,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <Text style={styles.dividerText}>OR</Text>
                   <View style={styles.dividerLine} />
                 </View>
+
+                {/* Google Sign In Button */}
+                <View style={styles.googleBtnWrapper}>
+                  <GoogleSigninButton
+                    style={styles.googleBtn}
+                    size={GoogleSigninButton.Size.Wide}
+                    color={GoogleSigninButton.Color.Dark}
+                    onPress={handleGoogleSignIn}
+                    disabled={googleLoading || siLoading}
+                  />
+                </View>
+
+                {googleError ? (
+                  <View style={styles.errorBanner}>
+                    <Ionicons name="alert-circle" size={13} color={CyberTheme.rose} />
+                    <Text style={styles.errorText}>{googleError}</Text>
+                  </View>
+                ) : null}
 
                 {/* Demo Access */}
                 <Pressable
@@ -808,5 +878,19 @@ const styles = StyleSheet.create({
   },
   btnPressed: {
     opacity: 0.7,
+  },
+
+  // ── Google Sign-In Button ──────────────────────────────────────────
+  googleBtnWrapper: {
+    alignItems: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#131314',
+  },
+  googleBtn: {
+    width: '100%',
+    height: 48,
   },
 });

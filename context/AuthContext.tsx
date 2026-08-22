@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (name: string, email: string, password: string, avatarUrl?: string) => Promise<{ success: boolean; error?: string }>;
+  googleAuth: (idToken: string) => Promise<{ success: boolean; error?: string }>;
   demoLogin: () => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updated: Partial<UserProfile>) => void;
@@ -120,6 +121,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Google OAuth — mirrors /api/auth/google on the backend
+  const googleAuth = async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      // If you have a real backend, POST the idToken there:
+      // const res = await fetch('http://YOUR_API/api/auth/google', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ idToken }),
+      // });
+      // const data = await res.json();
+      // setUser(data.user); setToken(data.token); setStats(data.stats);
+      // return { success: res.ok, error: data.error };
+
+      // Demo fallback: set a mock Google user
+      const googleUser: UserProfile = {
+        ...DEMO_USER,
+        name: 'Google Operative',
+        email: 'google@lifexp.system',
+        avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
+      };
+      setUser(googleUser);
+      setStats(DEMO_STATS);
+      setToken('google_token_' + Date.now());
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Google auth failed' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Demo Login
   const demoLogin = async () => {
     setIsLoading(true);
@@ -152,6 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading,
     login,
     signup,
+    googleAuth,
     demoLogin,
     logout,
     updateProfile,
