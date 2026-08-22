@@ -21,8 +21,12 @@ import { CyberTheme } from '@/constants/theme';
 WebBrowser.maybeCompleteAuthSession();
 
 // ── Google OAuth Client IDs ──
-const WEB_CLIENT_ID = '1020836316400-jb83vjma43ret1pask9av1unbcvuco27.apps.googleusercontent.com';
-const ANDROID_CLIENT_ID = '1020836316400-s99bugo54ioub2qst9baumm5200t0n8q.apps.googleusercontent.com';
+const WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  '1020836316400-jb83vjma43ret1pask9av1unbcvuco27.apps.googleusercontent.com';
+const ANDROID_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+  '1020836316400-s99bugo54ioub2qst9baumm5200t0n8q.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
