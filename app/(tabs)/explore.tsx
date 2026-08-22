@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CyberTheme } from '@/constants/theme';
 import { useLifeXP } from '@/context/LifeXPContext';
+import { QuestionnaireDemo } from '@/components/ui/questionnaire-demo';
 
 export default function OverviewScreen() {
   const { user, resetToDefaults } = useLifeXP();
@@ -118,6 +119,15 @@ export default function OverviewScreen() {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* Questionnaire Component Showcase */}
+        <View style={styles.questionnaireSection}>
+          <View style={styles.questionnaireHeader}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={18} color={CyberTheme.cyan} />
+            <Text style={styles.sectionHeading}>HUNTER SURVEY & PROTOCOL QUESTIONNAIRE</Text>
+          </View>
+          <QuestionnaireDemo />
         </View>
 
         {/* System Administration & Reset */}
@@ -256,6 +266,14 @@ const styles = StyleSheet.create({
   },
   pillarsGrid: {
     gap: 10,
+  },
+  questionnaireSection: {
+    gap: 10,
+  },
+  questionnaireHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   pillarCard: {
     backgroundColor: CyberTheme.bgCard,
