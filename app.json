@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Ecocycle",
-    "slug": "Ecocycle",
+    "name": "LifeXP",
+    "slug": "LifeXP",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ecocycle",
+    "scheme": "lifexp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
