@@ -21,8 +21,8 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { CyberTheme } from '@/constants/theme';
 
-// ── Replace with your actual Web Client ID from Google Cloud Console ──
-const WEB_CLIENT_ID = 'YOUR_WEB_CLIENT_ID_HERE.apps.googleusercontent.com';
+// ── Google OAuth Web Client ID ──
+const WEB_CLIENT_ID = '1020836316400-jb83vjma43ret1pask9av1unbcvuco27.apps.googleusercontent.com';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
