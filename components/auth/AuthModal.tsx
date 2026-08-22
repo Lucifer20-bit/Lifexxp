@@ -13,18 +13,18 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  GoogleSignin,
-  GoogleSigninButton,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { useAuth } from '@/context/AuthContext';
 import { CyberTheme } from '@/constants/theme';
 
-// ── Google OAuth Web Client ID ──
-const WEB_CLIENT_ID = '1020836316400-jb83vjma43ret1pask9av1unbcvuco27.apps.googleusercontent.com';
+WebBrowser.maybeCompleteAuthSession();
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+// ── Google OAuth Client IDs ──
+const WEB_CLIENT_ID = '1020836316400-jb83vjma43ret1pask9av1unbcvuco27.apps.googleusercontent.com';
+const ANDROID_CLIENT_ID = '1020836316400-s99bugo54ioub2qst9baumm5200t0n8q.apps.googleusercontent.com';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Hero image for login-02 panel
 const LOGIN_HERO = require('@/assets/images/login_hero.jpg');
@@ -54,14 +54,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
 
-  // Configure GoogleSignin once on mount
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: WEB_CLIENT_ID,
-      offlineAccess: true,
-    });
-  }, []);
-
   // Sign In fields
   const [siEmail, setSiEmail] = useState('');
   const [siPassword, setSiPassword] = useState('');
@@ -79,10 +71,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [suLoading, setSuLoading] = useState(false);
   const [suError, setSuError] = useState('');
 
+  // Google Sign-In state
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState('');
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: WEB_CLIENT_ID,
+    androidClientId: ANDROID_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      const idToken =
+        authentication?.idToken ||
+        (response.params as any)?.id_token ||
+        (response.params as any)?.access_token;
+
+      if (idToken) {
+        setGoogleLoading(true);
+        googleAuth(idToken)
+          .then((res) => {
+            if (res.success) {
+              onSuccess?.();
+            } else {
+              setGoogleError(res.error || 'Google authentication failed.');
+            }
+          })
+          .finally(() => {
+            setGoogleLoading(false);
+          });
+      }
+    } else if (response?.type === 'error') {
+      setGoogleError(response.error?.message || 'Google authentication encountered an error.');
+    }
+  }, [response]);
+
   const switchMode = (m: 'signin' | 'signup') => {
     setMode(m);
     setSiError('');
     setSuError('');
+    setGoogleError('');
   };
 
   // ── Sign In handler ──────────────────────────────────────────────────────
@@ -111,42 +140,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onSuccess?.();
     } finally {
       setSiLoading(false);
-    }
-  };
-
-  // ── Google Sign In ────────────────────────────────────────────────────────
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState('');
-
-  const handleGoogleSignIn = async () => {
-    setGoogleError('');
-    setGoogleLoading(true);
-    try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      const idToken = response?.data?.idToken;
-      if (!idToken) {
-        setGoogleError('Failed to get Google token.');
-        return;
-      }
-      const result = await googleAuth(idToken);
-      if (result.success) {
-        onSuccess?.();
-      } else {
-        setGoogleError(result.error || 'Google sign-in failed.');
-      }
-    } catch (error: any) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user cancelled, no error shown
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        setGoogleError('Sign-in already in progress.');
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setGoogleError('Google Play Services not available on this device.');
-      } else {
-        setGoogleError(error.message || 'Google sign-in encountered an error.');
-      }
-    } finally {
-      setGoogleLoading(false);
     }
   };
 
@@ -308,15 +301,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </View>
 
                 {/* Google Sign In Button */}
-                <View style={styles.googleBtnWrapper}>
-                  <GoogleSigninButton
-                    style={styles.googleBtn}
-                    size={GoogleSigninButton.Size.Wide}
-                    color={GoogleSigninButton.Color.Dark}
-                    onPress={handleGoogleSignIn}
-                    disabled={googleLoading || siLoading}
-                  />
-                </View>
+                <Pressable
+                  onPress={() => promptAsync()}
+                  disabled={!request || googleLoading || siLoading}
+                  style={({ pressed }) => [
+                    styles.googleCustomBtn,
+                    pressed && styles.btnPressed,
+                    (!request || googleLoading) && styles.ctaBtnDisabled,
+                  ]}
+                >
+                  <Ionicons name="logo-google" size={16} color="#FFF" />
+                  <Text style={styles.googleCustomBtnText}>
+                    {googleLoading ? 'CONNECTING GOOGLE...' : 'CONTINUE WITH GOOGLE'}
+                  </Text>
+                </Pressable>
 
                 {googleError ? (
                   <View style={styles.errorBanner}>
@@ -843,6 +841,25 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
+  // ── Google Sign-In Custom Button ──────────────────────────────────
+  googleCustomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#131314',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  googleCustomBtnText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+
   // ── Demo Button ─────────────────────────────────────────────────
   demoBtn: {
     flexDirection: 'row',
@@ -878,19 +895,5 @@ const styles = StyleSheet.create({
   },
   btnPressed: {
     opacity: 0.7,
-  },
-
-  // ── Google Sign-In Button ──────────────────────────────────────────
-  googleBtnWrapper: {
-    alignItems: 'center',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#131314',
-  },
-  googleBtn: {
-    width: '100%',
-    height: 48,
   },
 });
