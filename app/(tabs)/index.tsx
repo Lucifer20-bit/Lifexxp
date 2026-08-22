@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLifeXP } from '@/context/LifeXPContext';
+import { useAuth } from '@/context/AuthContext';
 import { CyberTheme } from '@/constants/theme';
 import { HeroHeader } from '@/components/lifexp/HeroHeader';
 import { QuestBoard } from '@/components/lifexp/QuestBoard';
@@ -19,13 +20,15 @@ import { HabitsView } from '@/components/lifexp/HabitsView';
 import { ShopView } from '@/components/lifexp/ShopView';
 import { ActivityLogView } from '@/components/lifexp/ActivityLogView';
 import { ForgeQuestModal } from '@/components/lifexp/ForgeQuestModal';
+import { LandingPage } from '@/components/landing/LandingPage';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 type DashboardTab = 'quests' | 'stats' | 'habits' | 'shop' | 'activity';
 
 export default function DashboardScreen() {
   const {
-    user,
-    stats,
+    user: lifexpUser,
+    stats: lifexpStats,
     quests,
     habits,
     shop,
@@ -37,9 +40,16 @@ export default function DashboardScreen() {
     buyShopItem,
   } = useLifeXP();
 
+  const { user: authUser, logout, isAuthenticated } = useAuth();
+
+  const [view, setView] = useState<'landing' | 'console'>('console');
   const [activeTab, setActiveTab] = useState<DashboardTab>('quests');
   const [forgeModalOpen, setForgeModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
 
+  const activeUser = authUser || lifexpUser;
+  const activeStats = lifexpStats;
   const activeQuestsCount = quests.filter(q => q.isCompleted === 0).length;
 
   const TABS: { id: DashboardTab; label: string; icon: any; count?: number }[] = [
@@ -71,6 +81,29 @@ export default function DashboardScreen() {
     },
   ];
 
+  // If in Landing Mode
+  if (view === 'landing') {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor={CyberTheme.bg} />
+        <LandingPage
+          onLaunchConsole={() => setView('console')}
+          onOpenAuth={(mode) => {
+            setAuthModalMode(mode || 'signin');
+            setAuthModalOpen(true);
+          }}
+        />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          initialMode={authModalMode}
+          onSuccess={() => setView('console')}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Console HUD View
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={CyberTheme.bg} />
@@ -79,8 +112,42 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* Top View Bar with Landing Switcher & Auth actions */}
+        <View style={styles.topControlRow}>
+          <Pressable
+            onPress={() => setView('landing')}
+            style={({ pressed }) => [styles.overviewBtn, pressed && styles.btnPressed]}
+          >
+            <Ionicons name="arrow-back" size={14} color={CyberTheme.cyan} />
+            <Text style={styles.overviewBtnText}>LANDING PAGE</Text>
+          </Pressable>
+
+          <View style={styles.authActionsRow}>
+            {isAuthenticated ? (
+              <Pressable
+                onPress={() => logout()}
+                style={({ pressed }) => [styles.authBtn, pressed && styles.btnPressed]}
+              >
+                <Ionicons name="log-out-outline" size={13} color={CyberTheme.rose} />
+                <Text style={styles.authBtnTextRose}>SIGN OUT</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  setAuthModalMode('signin');
+                  setAuthModalOpen(true);
+                }}
+                style={({ pressed }) => [styles.authBtn, pressed && styles.btnPressed]}
+              >
+                <Ionicons name="log-in-outline" size={13} color={CyberTheme.cyan} />
+                <Text style={styles.authBtnTextCyan}>SIGN IN</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
         {/* 1. Hero HUD Header */}
-        <HeroHeader user={user} />
+        <HeroHeader user={activeUser} />
 
         {/* 2. HUD Tab Switcher */}
         <View style={styles.tabContainer}>
@@ -136,7 +203,7 @@ export default function DashboardScreen() {
           )}
 
           {activeTab === 'stats' && (
-            <AttributesView stats={stats} user={user} />
+            <AttributesView stats={activeStats} user={activeUser} />
           )}
 
           {activeTab === 'habits' && (
@@ -144,7 +211,7 @@ export default function DashboardScreen() {
           )}
 
           {activeTab === 'shop' && (
-            <ShopView shop={shop} user={user} onBuyItem={buyShopItem} />
+            <ShopView shop={shop} user={activeUser} onBuyItem={buyShopItem} />
           )}
 
           {activeTab === 'activity' && (
@@ -158,6 +225,14 @@ export default function DashboardScreen() {
         visible={forgeModalOpen}
         onClose={() => setForgeModalOpen(false)}
         onCreateQuest={createQuest}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+        onSuccess={() => setView('console')}
       />
     </SafeAreaView>
   );
@@ -175,6 +250,62 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 40,
     gap: 8,
+  },
+  topControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  overviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#090D16',
+    borderWidth: 1,
+    borderColor: CyberTheme.border,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  overviewBtnText: {
+    color: CyberTheme.textSecondary,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  authActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  authBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#090D16',
+    borderWidth: 1,
+    borderColor: CyberTheme.border,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  authBtnTextCyan: {
+    color: CyberTheme.cyan,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  authBtnTextRose: {
+    color: CyberTheme.rose,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  btnPressed: {
+    opacity: 0.75,
   },
   tabContainer: {
     paddingHorizontal: 16,
