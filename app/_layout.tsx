@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
 import { LifeXPProvider } from '@/context/LifeXPContext';
+import { AppLayoutProvider } from '@/components/layout/AppLayout';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -17,13 +18,15 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <LifeXPProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'System Guide' }} />
-          </Stack>
-          <StatusBar style="light" />
-        </ThemeProvider>
+        <AppLayoutProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'System Guide' }} />
+            </Stack>
+            <StatusBar style="light" />
+          </ThemeProvider>
+        </AppLayoutProvider>
       </LifeXPProvider>
     </AuthProvider>
   );
